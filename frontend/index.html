@@ -8,22 +8,31 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root {
-    --bg: #040f0a;
-    --bg2: #071410;
-    --surface: #0c1f18;
-    --surface2: #102820;
-    --border: #1a3d2a;
-    --green: #00e87a;
-    --green-dim: #00b85e;
-    --green-glow: rgba(0,232,122,0.15);
-    --purple: #7c6fff;
-    --purple-dim: rgba(124,111,255,0.2);
-    --text: #e8f5ef;
-    --text-muted: #5a8a70;
-    --text-dim: #2d5040;
-    --low: #00e87a;
-    --mid: #f0c040;
-    --high: #ff5555;
+    --bg: #020806;
+    --bg-darker: #010504;
+    --surface: rgba(12, 31, 24, 0.6);
+    --surface-light: rgba(20, 45, 35, 0.4);
+    --border: rgba(26, 61, 42, 0.5);
+    --border-glow: rgba(0, 232, 122, 0.3);
+    
+    --green: #00f58d;
+    --green-dim: #00cc75;
+    --green-glow: rgba(0, 245, 141, 0.15);
+    
+    --purple: #877bff;
+    --purple-dim: rgba(135, 123, 255, 0.2);
+    --purple-glow: rgba(135, 123, 255, 0.25);
+    
+    --text: #f0f7f3;
+    --text-muted: #8ab69e;
+    --text-dim: #456d59;
+    
+    --low: #00f58d;
+    --mid: #ffd15c;
+    --high: #ff6b6b;
+    
+    --glass-blur: blur(12px);
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -36,29 +45,32 @@
     overflow-x: hidden;
   }
 
-  /* Background grid */
+  /* Animated Mesh Background */
   body::before {
     content: '';
     position: fixed;
     inset: 0;
-    background-image:
-      linear-gradient(rgba(0,232,122,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,232,122,0.03) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-    z-index: 0;
+    background: 
+      radial-gradient(circle at 20% 30%, rgba(0, 245, 141, 0.05) 0%, transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(135, 123, 255, 0.05) 0%, transparent 40%);
+    z-index: -1;
+    animation: meshFlow 20s ease-in-out infinite alternate;
   }
 
-  /* Radial glow center */
+  @keyframes meshFlow {
+    0% { transform: scale(1) translate(0, 0); }
+    100% { transform: scale(1.1) translate(2%, 2%); }
+  }
+
   body::after {
     content: '';
     position: fixed;
-    top: 20%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 500px;
-    height: 500px;
-    background: radial-gradient(circle, rgba(0,232,122,0.06) 0%, transparent 70%);
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(0, 245, 141, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 245, 141, 0.02) 1px, transparent 1px);
+    background-size: 50px 50px;
+    mask-image: radial-gradient(circle at center, black 30%, transparent 80%);
     pointer-events: none;
     z-index: 0;
   }
@@ -74,8 +86,8 @@
     justify-content: space-between;
     padding: 18px 24px;
     border-bottom: 1px solid var(--border);
-    background: rgba(4,15,10,0.8);
-    backdrop-filter: blur(12px);
+    background: rgba(2, 8, 6, 0.7);
+    backdrop-filter: var(--glass-blur);
     position: sticky;
     top: 0;
     z-index: 100;
@@ -225,12 +237,20 @@
     width: 100%;
     max-width: 440px;
     background: var(--surface);
+    backdrop-filter: var(--glass-blur);
     border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 22px 24px;
-    border-left: 3px solid var(--purple);
+    border-radius: 24px;
+    padding: 24px;
+    border-left: 4px solid var(--purple);
     position: relative;
     overflow: hidden;
+    transition: var(--transition);
+  }
+
+  .tip-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--border-glow);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
   }
 
   .tip-card::before {
@@ -288,28 +308,28 @@
   /* FAB */
   .fab {
     position: fixed;
-    bottom: 72px;
+    bottom: 84px;
     left: 50%;
     transform: translateX(-50%);
-    width: 56px;
-    height: 56px;
-    background: var(--purple);
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, var(--purple), var(--green-dim));
     border: none;
-    border-radius: 50%;
-    font-size: 1.6rem;
+    border-radius: 20px;
+    font-size: 1.8rem;
     color: white;
     cursor: pointer;
-    box-shadow: 0 0 20px rgba(124,111,255,0.5);
+    box-shadow: 0 8px 32px var(--purple-glow);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: var(--transition);
     z-index: 50;
   }
 
   .fab:hover {
-    transform: translateX(-50%) scale(1.08);
-    box-shadow: 0 0 30px rgba(124,111,255,0.7);
+    transform: translateX(-50%) translateY(-5px) rotate(90deg);
+    box-shadow: 0 12px 48px var(--purple-glow);
   }
 
   .fab:active { transform: translateX(-50%) scale(0.95); }
@@ -319,14 +339,14 @@
     position: fixed;
     bottom: 0;
     left: 0; right: 0;
-    height: 64px;
-    background: rgba(4,15,10,0.95);
-    backdrop-filter: blur(16px);
+    height: 72px;
+    background: rgba(2, 8, 6, 0.8);
+    backdrop-filter: var(--glass-blur);
     border-top: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: space-around;
-    padding: 0 8px;
+    padding: 0 12px;
     z-index: 40;
   }
 
@@ -439,9 +459,9 @@
     background: var(--green-dim);
   }
 
-  .bar.high { background: var(--high); }
-  .bar.mid { background: var(--mid); }
-  .bar.low { background: var(--green-dim); }
+  .bar.high { background: linear-gradient(0deg, var(--high), #ff9999); box-shadow: 0 0 15px rgba(255,107,107,0.3); }
+  .bar.mid { background: linear-gradient(0deg, var(--mid), #ffeaa7); box-shadow: 0 0 15px rgba(255,209,92,0.3); }
+  .bar.low { background: linear-gradient(0deg, var(--green-dim), var(--green)); box-shadow: 0 0 15px var(--green-glow); }
 
   .bar-day {
     font-family: 'Space Mono', monospace;
@@ -472,17 +492,20 @@
 
   .bubble-ai {
     background: var(--surface);
+    backdrop-filter: var(--glass-blur);
     border: 1px solid var(--border);
     align-self: flex-start;
     border-bottom-left-radius: 4px;
     color: var(--text);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
   }
 
   .bubble-user {
-    background: var(--purple);
+    background: linear-gradient(135deg, var(--purple), #6355ff);
     align-self: flex-end;
     border-bottom-right-radius: 4px;
     color: white;
+    box-shadow: 0 4px 15px var(--purple-dim);
   }
 
   .chat-input-row {
@@ -496,22 +519,25 @@
   .chat-input {
     flex: 1;
     background: var(--surface);
+    backdrop-filter: var(--glass-blur);
     border: 1px solid var(--border);
     border-radius: 24px;
-    padding: 12px 18px;
+    padding: 14px 20px;
     color: var(--text);
     font-family: 'Syne', sans-serif;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     outline: none;
-    transition: border-color 0.2s;
+    transition: var(--transition);
   }
 
-  .chat-input:focus { border-color: var(--green-dim); }
-  .chat-input::placeholder { color: var(--text-dim); }
+  .chat-input:focus { 
+    border-color: var(--green); 
+    box-shadow: 0 0 20px var(--green-glow);
+  }
 
   .send-btn {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     background: var(--green);
     border: none;
     border-radius: 50%;
@@ -519,12 +545,17 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1rem;
-    transition: all 0.2s;
+    font-size: 1.2rem;
+    color: var(--bg-darker);
+    transition: var(--transition);
     flex-shrink: 0;
+    box-shadow: 0 4px 15px var(--green-glow);
   }
 
-  .send-btn:hover { background: var(--green-dim); transform: scale(1.05); }
+  .send-btn:hover { 
+    background: white; 
+    transform: scale(1.1) rotate(-10deg); 
+  }
 
   /* PROFILE SCREEN */
   .profile-avatar {
@@ -636,21 +667,21 @@
 
   /* SAFETY SCREEN */
   .safety-sos {
-    width: 140px;
-    height: 140px;
-    background: radial-gradient(circle, #ff5555, #cc2222);
+    width: 150px;
+    height: 150px;
+    background: radial-gradient(circle at 30% 30%, #ff6b6b, #cc2222);
     border-radius: 50%;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     font-weight: 800;
-    font-size: 1.4rem;
+    font-size: 1.6rem;
     cursor: pointer;
-    box-shadow: 0 0 40px rgba(255,85,85,0.4);
-    border: none;
+    box-shadow: 0 0 50px rgba(255,107,107,0.4);
+    border: 4px solid rgba(255,255,255,0.1);
     color: white;
-    transition: transform 0.15s, box-shadow 0.2s;
+    transition: var(--transition);
     animation: sosPulse 2s ease-in-out infinite;
   }
 
@@ -1133,12 +1164,14 @@
     <div style="font-size:1.1rem;font-weight:800;margin-bottom:6px;">How stressed are you?</div>
     <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--text-muted);margin-bottom:24px;">Slide to check in</div>
 
+    <div id="mood-emoji-display" style="font-size: 3.5rem; text-align: center; margin-bottom: 20px; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">😌</div>
+
     <input type="range" id="stress-slider" min="0" max="100" value="0"
       style="width:100%;accent-color:var(--green);height:6px;cursor:pointer;"
-      oninput="updateSlider(this.value)">
+      oninput="updateMoodUI(this.value)">
 
     <div style="display:flex;justify-content:space-between;margin-top:10px;font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--text-muted);">
-      <span>LOW</span><span id="slider-val">0</span><span>HIGH</span>
+      <span id="mood-label-low">CALM</span><span id="slider-val">0</span><span id="mood-label-high">STRESSED</span>
     </div>
 
     <div style="display:flex;gap:10px;margin-top:24px;">
@@ -1359,14 +1392,27 @@
   function animateGauge(target) {
     let current = currentStress;
     const step = target > current ? 1 : -1;
-    const interval = setInterval(() => {
-      current += step;
-      setGauge(current);
-      if (current === target) {
-        clearInterval(interval);
+    const duration = 800; // ms
+    const startTime = performance.now();
+    const startVal = current;
+
+    function update(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Easing function: easeOutExpo
+      const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      
+      const val = Math.round(startVal + (target - startVal) * ease);
+      setGauge(val);
+      
+      if (progress < 1) {
+        requestAnimationFrame(update);
+      } else {
         currentStress = target;
       }
-    }, 15);
+    }
+    requestAnimationFrame(update);
   }
 
   // Check-in modal
@@ -1379,8 +1425,32 @@
     document.getElementById('checkin-modal').style.display = 'none';
   }
 
-  function updateSlider(val) {
-    document.getElementById('slider-val').textContent = val;
+  function updateMoodUI(val) {
+    const value = parseInt(val);
+    document.getElementById('slider-val').textContent = value;
+    const emoji = document.getElementById('mood-emoji-display');
+    const lowLabel = document.getElementById('mood-label-low');
+    const highLabel = document.getElementById('mood-label-high');
+    
+    // Scale emoji size slightly with intensity
+    const scale = 1 + (value / 500);
+    emoji.style.transform = `scale(${scale})`;
+
+    if (value < 20) {
+      emoji.textContent = '😌';
+      lowLabel.style.color = 'var(--green)';
+    } else if (value < 40) {
+      emoji.textContent = '🙂';
+    } else if (value < 60) {
+      emoji.textContent = '😐';
+      lowLabel.style.color = 'var(--text-muted)';
+      highLabel.style.color = 'var(--text-muted)';
+    } else if (value < 80) {
+      emoji.textContent = '😟';
+    } else {
+      emoji.textContent = '😫';
+      highLabel.style.color = 'var(--high)';
+    }
   }
 
   // ── Check-in (real API) ─────────────────────────────────────────────────
@@ -1388,12 +1458,29 @@
     const val = parseInt(document.getElementById('stress-slider').value);
     const noteEl = document.getElementById('checkin-note');
     const note = noteEl ? noteEl.value.trim() : null;
-    closeCheckIn();
+    
+    // Add a quick success pulse to the action button
+    const btn = document.querySelector('#checkin-modal button[onclick*="submit"]');
+    if (btn) {
+      btn.textContent = 'SAVED! ✅';
+      btn.style.background = 'white';
+    }
+
+    setTimeout(() => {
+      closeCheckIn();
+      if (btn) {
+        btn.textContent = 'Log It';
+        btn.style.background = 'var(--green)';
+      }
+    }, 600);
+
     animateGauge(val);
     const idx = Math.floor(Math.random() * tips.length);
     document.getElementById('tip-text').textContent = tips[idx];
+    
+    showToast('Mood logged successfully! 🌿', 'info');
 
-    if (!Auth.isLoggedIn()) return; // guest mode — local only
+    if (!Auth.isLoggedIn()) return;
 
     try {
       await api('POST', '/checkins', { stress_level: val, note: note || null });
