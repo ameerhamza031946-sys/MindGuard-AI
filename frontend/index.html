@@ -1,0 +1,1790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MindGuard AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root {
+    --bg: #040f0a;
+    --bg2: #071410;
+    --surface: #0c1f18;
+    --surface2: #102820;
+    --border: #1a3d2a;
+    --green: #00e87a;
+    --green-dim: #00b85e;
+    --green-glow: rgba(0,232,122,0.15);
+    --purple: #7c6fff;
+    --purple-dim: rgba(124,111,255,0.2);
+    --text: #e8f5ef;
+    --text-muted: #5a8a70;
+    --text-dim: #2d5040;
+    --low: #00e87a;
+    --mid: #f0c040;
+    --high: #ff5555;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,232,122,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,232,122,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Radial glow center */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(0,232,122,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* SCREENS */
+  .screen { display: none; position: relative; z-index: 1; }
+  .screen.active { display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* TOP NAV */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(4,15,10,0.8);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.1rem;
+    letter-spacing: -0.02em;
+  }
+
+  .logo-icon {
+    width: 28px;
+    height: 28px;
+    background: var(--green);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+
+  .mode-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 6px 14px;
+    border: 1px solid var(--green);
+    border-radius: 20px;
+    color: var(--green);
+    cursor: pointer;
+    transition: all 0.2s;
+    background: transparent;
+  }
+  .mode-badge:hover { background: var(--green-glow); }
+
+  /* MAIN CONTENT */
+  .content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 24px 100px;
+    gap: 32px;
+  }
+
+  /* STRESS GAUGE */
+  .gauge-wrapper {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .gauge-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+
+  .gauge-track {
+    fill: none;
+    stroke: var(--surface2);
+    stroke-width: 8;
+    stroke-linecap: round;
+  }
+
+  .gauge-fill {
+    fill: none;
+    stroke: var(--green);
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-dasharray: 502;
+    stroke-dashoffset: 502;
+    transition: stroke-dashoffset 1s ease, stroke 0.5s;
+    filter: drop-shadow(0 0 6px var(--green));
+  }
+
+  .gauge-dot {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--green);
+    border-radius: 50%;
+    top: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    box-shadow: 0 0 10px var(--green);
+    transition: all 0.5s;
+  }
+
+  .gauge-center {
+    text-align: center;
+    z-index: 1;
+  }
+
+  .gauge-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text);
+    transition: color 0.5s;
+  }
+
+  .gauge-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: var(--green);
+    margin-top: 6px;
+    transition: color 0.5s;
+  }
+
+  /* STATUS TEXT */
+  .status-block {
+    text-align: center;
+  }
+
+  .status-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .status-sub {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 6px;
+    letter-spacing: 0.05em;
+  }
+
+  /* TIP CARD */
+  .tip-card {
+    width: 100%;
+    max-width: 440px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 22px 24px;
+    border-left: 3px solid var(--purple);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .tip-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, var(--purple), transparent);
+  }
+
+  .tip-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .tip-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.03em;
+  }
+
+  .tip-icon { font-size: 1.1rem; }
+
+  .tip-quote {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.7;
+    font-style: italic;
+  }
+
+  .tip-bar {
+    margin-top: 16px;
+    height: 2px;
+    background: var(--surface2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .tip-bar-fill {
+    height: 100%;
+    width: 45%;
+    background: linear-gradient(90deg, var(--purple), var(--green));
+    border-radius: 2px;
+    animation: tipPulse 3s ease-in-out infinite;
+  }
+
+  @keyframes tipPulse {
+    0%, 100% { opacity: 0.6; width: 40%; }
+    50% { opacity: 1; width: 70%; }
+  }
+
+  /* FAB */
+  .fab {
+    position: fixed;
+    bottom: 72px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 56px;
+    height: 56px;
+    background: var(--purple);
+    border: none;
+    border-radius: 50%;
+    font-size: 1.6rem;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 0 20px rgba(124,111,255,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+    z-index: 50;
+  }
+
+  .fab:hover {
+    transform: translateX(-50%) scale(1.08);
+    box-shadow: 0 0 30px rgba(124,111,255,0.7);
+  }
+
+  .fab:active { transform: translateX(-50%) scale(0.95); }
+
+  /* BOTTOM NAV */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0; right: 0;
+    height: 64px;
+    background: rgba(4,15,10,0.95);
+    backdrop-filter: blur(16px);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 8px;
+    z-index: 40;
+  }
+
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: background 0.2s;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: 'Syne', sans-serif;
+    font-size: 0.65rem;
+    font-weight: 600;
+  }
+
+  .nav-item:hover { background: var(--green-glow); }
+  .nav-item.active { color: var(--green); }
+
+  .nav-icon {
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  /* QUICK ACTIONS */
+  .quick-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    width: 100%;
+    max-width: 440px;
+  }
+
+  .action-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .action-card:hover {
+    border-color: var(--green-dim);
+    background: var(--surface2);
+    transform: translateY(-2px);
+  }
+
+  .action-icon { font-size: 1.4rem; }
+
+  .action-title {
+    font-weight: 700;
+    font-size: 0.85rem;
+  }
+
+  .action-sub {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--text-muted);
+  }
+
+  /* TRENDS SCREEN */
+  .chart-area {
+    width: 100%;
+    max-width: 440px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 20px;
+  }
+
+  .chart-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .chart-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    height: 100px;
+  }
+
+  .bar-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    height: 100%;
+    justify-content: flex-end;
+  }
+
+  .bar {
+    width: 100%;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.8s ease;
+    min-height: 4px;
+    background: var(--green-dim);
+  }
+
+  .bar.high { background: var(--high); }
+  .bar.mid { background: var(--mid); }
+  .bar.low { background: var(--green-dim); }
+
+  .bar-day {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.55rem;
+    color: var(--text-muted);
+  }
+
+  /* CHAT SCREEN */
+  .chat-container {
+    width: 100%;
+    max-width: 440px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    padding-bottom: 16px;
+  }
+
+  .chat-bubble {
+    max-width: 80%;
+    padding: 12px 16px;
+    border-radius: 16px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    line-height: 1.6;
+  }
+
+  .bubble-ai {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+    color: var(--text);
+  }
+
+  .bubble-user {
+    background: var(--purple);
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+    color: white;
+  }
+
+  .chat-input-row {
+    width: 100%;
+    max-width: 440px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .chat-input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 12px 18px;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .chat-input:focus { border-color: var(--green-dim); }
+  .chat-input::placeholder { color: var(--text-dim); }
+
+  .send-btn {
+    width: 44px;
+    height: 44px;
+    background: var(--green);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .send-btn:hover { background: var(--green-dim); transform: scale(1.05); }
+
+  /* PROFILE SCREEN */
+  .profile-avatar {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, var(--purple), var(--green-dim));
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+  }
+
+  .profile-name {
+    font-size: 1.3rem;
+    font-weight: 800;
+  }
+
+  .profile-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .stat-row {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    max-width: 440px;
+  }
+
+  .stat-box {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .stat-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--green);
+  }
+
+  .stat-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .setting-list {
+    width: 100%;
+    max-width: 440px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .setting-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 0.85rem;
+  }
+
+  .setting-item:hover { background: var(--surface2); }
+
+  .setting-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .toggle {
+    width: 36px;
+    height: 20px;
+    background: var(--green);
+    border-radius: 10px;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .toggle::after {
+    content: '';
+    position: absolute;
+    right: 3px;
+    top: 3px;
+    width: 14px;
+    height: 14px;
+    background: white;
+    border-radius: 50%;
+    transition: right 0.2s;
+  }
+
+  .toggle.off { background: var(--border); }
+  .toggle.off::after { right: auto; left: 3px; }
+
+  /* SAFETY SCREEN */
+  .safety-sos {
+    width: 140px;
+    height: 140px;
+    background: radial-gradient(circle, #ff5555, #cc2222);
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1.4rem;
+    cursor: pointer;
+    box-shadow: 0 0 40px rgba(255,85,85,0.4);
+    border: none;
+    color: white;
+    transition: transform 0.15s, box-shadow 0.2s;
+    animation: sosPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes sosPulse {
+    0%, 100% { box-shadow: 0 0 30px rgba(255,85,85,0.3); }
+    50% { box-shadow: 0 0 55px rgba(255,85,85,0.6); }
+  }
+
+  .safety-sos:hover {
+    transform: scale(1.05);
+  }
+
+  .safety-sos:active { transform: scale(0.95); }
+
+  .safety-sos-sub {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.55rem;
+    margin-top: 2px;
+    opacity: 0.8;
+  }
+
+  .resource-list {
+    width: 100%;
+    max-width: 440px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .resource-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .resource-card:hover {
+    border-color: var(--green-dim);
+    transform: translateX(4px);
+  }
+
+  .resource-icon {
+    font-size: 1.3rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface2);
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+
+  .resource-info { flex: 1; }
+
+  .resource-name {
+    font-weight: 700;
+    font-size: 0.85rem;
+  }
+
+  .resource-desc {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    margin-top: 3px;
+  }
+
+  .resource-arrow { color: var(--text-muted); font-size: 0.8rem; }
+
+  /* ANIMATIONS */
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .screen.active > * {
+    animation: fadeSlideUp 0.4s ease both;
+  }
+
+  .screen.active > *:nth-child(2) { animation-delay: 0.05s; }
+  .screen.active > *:nth-child(3) { animation-delay: 0.1s; }
+  .screen.active > *:nth-child(4) { animation-delay: 0.15s; }
+
+  /* Section label */
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    width: 100%;
+    max-width: 440px;
+    padding: 0 2px;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* AI typing indicator */
+  .typing {
+    display: flex;
+    gap: 4px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    border-bottom-left-radius: 4px;
+    align-self: flex-start;
+    width: fit-content;
+  }
+
+  .typing span {
+    width: 6px;
+    height: 6px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    animation: bounce 1.2s ease-in-out infinite;
+  }
+
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-6px); opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HOME SCREEN -->
+<div class="screen active" id="screen-home">
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-icon">🧠</div>
+      MindGuard AI
+    </div>
+    <button class="mode-badge" onclick="toggleMode(this)">LOCAL MODE</button>
+  </div>
+
+  <div class="content">
+    <!-- Gauge -->
+    <div class="gauge-wrapper" id="gauge-wrapper">
+      <svg class="gauge-svg" viewBox="0 0 160 160">
+        <circle class="gauge-track" cx="80" cy="80" r="68" stroke-dasharray="427 427"/>
+        <circle class="gauge-fill" id="gauge-fill" cx="80" cy="80" r="68" stroke-dasharray="427 427" stroke-dashoffset="427"/>
+      </svg>
+      <div class="gauge-dot" id="gauge-dot"></div>
+      <div class="gauge-center">
+        <div class="gauge-value" id="gauge-value">0</div>
+        <div class="gauge-label" id="gauge-label">LOW</div>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div class="status-block">
+      <div class="status-title" id="status-title">LOCAL MODE ACTIVE</div>
+      <div class="status-sub" id="status-sub">Running in Local Mode. Server connection lost.</div>
+    </div>
+
+    <!-- Today's tip -->
+    <div class="tip-card">
+      <div class="tip-header">
+        <span class="tip-title">Today Mind Detox Tip</span>
+        <span class="tip-icon">💡</span>
+      </div>
+      <div class="tip-quote" id="tip-text">"Release what you can't control, and let peace find you."</div>
+      <div class="tip-bar"><div class="tip-bar-fill"></div></div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="section-label">Quick Actions</div>
+    <div class="quick-actions">
+      <div class="action-card" onclick="openCheckIn()">
+        <div class="action-icon">📊</div>
+        <div class="action-title">Check In</div>
+        <div class="action-sub">Rate your mood</div>
+      </div>
+      <div class="action-card" onclick="switchScreen('chat')">
+        <div class="action-icon">💬</div>
+        <div class="action-title">Talk to AI</div>
+        <div class="action-sub">Share how you feel</div>
+      </div>
+      <div class="action-card" onclick="switchScreen('safety')">
+        <div class="action-icon">🛡️</div>
+        <div class="action-title">Safety</div>
+        <div class="action-sub">Resources & SOS</div>
+      </div>
+      <div class="action-card" onclick="switchScreen('trends')">
+        <div class="action-icon">📈</div>
+        <div class="action-title">Trends</div>
+        <div class="action-sub">Your history</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TRENDS SCREEN -->
+<div class="screen" id="screen-trends">
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-icon">🧠</div>
+      MindGuard AI
+    </div>
+    <button class="mode-badge">LOCAL MODE</button>
+  </div>
+  <div class="content">
+    <div class="status-block">
+      <div class="status-title">Your Trends</div>
+      <div class="status-sub">Stress levels this week</div>
+    </div>
+
+    <div class="chart-area">
+      <div class="chart-title">Weekly Stress</div>
+      <div class="chart-bars" id="chart-bars">
+        <!-- Bars generated by JS -->
+      </div>
+    </div>
+
+    <div class="chart-area">
+      <div class="chart-title">Insights</div>
+      <div id="trends-insights" style="font-family:'Space Mono',monospace;font-size:0.75rem;color:var(--text-muted);line-height:1.8;">
+        📅 &nbsp;Most stressed: <span style="color:var(--text)">Wednesday</span><br>
+        😌 &nbsp;Calmest day: <span style="color:var(--green)">Sunday</span><br>
+        📊 &nbsp;Avg stress: <span style="color:var(--text)">32 / 100</span><br>
+        🔥 &nbsp;Check-in streak: <span style="color:var(--purple)">5 days</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SAFETY SCREEN -->
+<div class="screen" id="screen-safety">
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-icon">🧠</div>
+      MindGuard AI
+    </div>
+    <button class="mode-badge">LOCAL MODE</button>
+  </div>
+  <div class="content">
+    <div class="status-block">
+      <div class="status-title">Safety Hub</div>
+      <div class="status-sub">You are not alone. Help is here.</div>
+    </div>
+
+    <button class="safety-sos" onclick="triggerSOS()">
+      SOS
+      <div class="safety-sos-sub">EMERGENCY</div>
+    </button>
+
+    <div class="section-label">Resources</div>
+    <div class="resource-list">
+      <div class="resource-card">
+        <div class="resource-icon">📞</div>
+        <div class="resource-info">
+          <div class="resource-name">Crisis Hotline</div>
+          <div class="resource-desc">988 · Available 24/7</div>
+        </div>
+        <div class="resource-arrow">›</div>
+      </div>
+      <div class="resource-card">
+        <div class="resource-icon">💬</div>
+        <div class="resource-info">
+          <div class="resource-name">Crisis Text Line</div>
+          <div class="resource-desc">Text HOME to 741741</div>
+        </div>
+        <div class="resource-arrow">›</div>
+      </div>
+      <div class="resource-card">
+        <div class="resource-icon">🧘</div>
+        <div class="resource-info">
+          <div class="resource-name">Breathing Exercise</div>
+          <div class="resource-desc">4-7-8 calm technique</div>
+        </div>
+        <div class="resource-arrow">›</div>
+      </div>
+      <div class="resource-card">
+        <div class="resource-icon">🌐</div>
+        <div class="resource-info">
+          <div class="resource-name">Find a Therapist</div>
+          <div class="resource-desc">Local mental health pros</div>
+        </div>
+        <div class="resource-arrow">›</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CHAT SCREEN -->
+<div class="screen" id="screen-chat">
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-icon">🧠</div>
+      MindGuard AI
+    </div>
+    <button class="mode-badge">LOCAL MODE</button>
+  </div>
+  <div class="content" style="gap:12px;">
+    <div class="chat-container" id="chat-container">
+      <div class="chat-bubble bubble-ai">
+        Hi! I'm MindGuard AI. How are you feeling today? I'm here to listen. 💚
+      </div>
+    </div>
+    <div class="chat-input-row">
+      <input class="chat-input" id="chat-input" placeholder="Type how you feel..." onkeydown="if(event.key==='Enter') sendChat()"/>
+      <button class="send-btn" onclick="sendChat()">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE SCREEN -->
+<div class="screen" id="screen-profile">
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-icon">🧠</div>
+      MindGuard AI
+    </div>
+    <button class="mode-badge">LOCAL MODE</button>
+  </div>
+
+  <!-- LOGGED OUT STATE -->
+  <div class="content" id="profile-loggedout">
+    <div style="text-align:center;padding:10px 0 4px;">
+      <div style="font-size:3.5rem;margin-bottom:12px;">🔐</div>
+      <div class="profile-name" style="font-size:1.2rem;">Welcome to MindGuard</div>
+      <div class="profile-tag" style="margin-top:6px;line-height:1.6;">Login karein apna progress save karne ke liye<br>aur personalized insights pane ke liye.</div>
+    </div>
+
+    <!-- Auth tabs -->
+    <div style="display:flex;gap:0;width:100%;max-width:440px;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;">
+      <button id="tab-login" onclick="switchAuthTab('login')" style="flex:1;padding:12px;background:var(--green);border:none;color:#040f0a;font-family:'Syne',sans-serif;font-weight:700;font-size:0.85rem;cursor:pointer;transition:all 0.2s;">Login</button>
+      <button id="tab-signup" onclick="switchAuthTab('signup')" style="flex:1;padding:12px;background:transparent;border:none;color:var(--text-muted);font-family:'Syne',sans-serif;font-weight:700;font-size:0.85rem;cursor:pointer;transition:all 0.2s;">Sign Up</button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="auth-form" style="width:100%;max-width:440px;display:flex;flex-direction:column;gap:12px;">
+      <div id="signup-name-field" style="display:none;">
+        <div style="font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.08em;">FULL NAME</div>
+        <input id="inp-name" type="text" placeholder="Apna naam likhein..." style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;color:var(--text);font-family:'Syne',sans-serif;font-size:0.85rem;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='var(--green-dim)'" onblur="this.style.borderColor='var(--border)'"/>
+      </div>
+
+      <div>
+        <div style="font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.08em;">EMAIL</div>
+        <input id="inp-email" type="email" placeholder="email@example.com" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;color:var(--text);font-family:'Syne',sans-serif;font-size:0.85rem;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='var(--green-dim)'" onblur="this.style.borderColor='var(--border)'"/>
+      </div>
+
+      <div>
+        <div style="font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.08em;">PASSWORD</div>
+        <div style="position:relative;">
+          <input id="inp-pass" type="password" placeholder="••••••••" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 44px 14px 16px;color:var(--text);font-family:'Syne',sans-serif;font-size:0.85rem;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='var(--green-dim)'" onblur="this.style.borderColor='var(--border)'"/>
+          <button onclick="togglePass()" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;color:var(--text-muted);" id="pass-eye">👁️</button>
+        </div>
+      </div>
+
+      <div id="forgot-link" style="text-align:right;margin-top:-4px;">
+        <span onclick="showForgot()" style="font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--green-dim);cursor:pointer;text-decoration:underline;">Password bhool gaye?</span>
+      </div>
+
+      <div id="auth-error" style="display:none;background:rgba(255,85,85,0.1);border:1px solid rgba(255,85,85,0.3);border-radius:10px;padding:10px 14px;font-family:'Space Mono',monospace;font-size:0.65rem;color:#ff8080;"></div>
+
+      <button id="auth-btn" onclick="handleAuth()" style="width:100%;padding:15px;background:var(--green);border:none;border-radius:12px;color:#040f0a;font-family:'Syne',sans-serif;font-weight:800;font-size:0.9rem;cursor:pointer;transition:all 0.2s;letter-spacing:0.03em;">LOGIN</button>
+
+      <!-- Divider -->
+      <div style="display:flex;align-items:center;gap:12px;margin:4px 0;">
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+        <span style="font-family:'Space Mono',monospace;font-size:0.55rem;color:var(--text-dim);">YA</span>
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+      </div>
+
+      <!-- Google login -->
+      <div id="google-btn-wrapper" style="width:100%; display:flex; justify-content:center; margin-top:4px;"></div>
+    </div>
+  </div>
+
+  <!-- LOGGED IN STATE -->
+  <div class="content" id="profile-loggedin" style="display:none;">
+    <div class="profile-avatar" id="profile-emoji">🧑</div>
+    <div style="text-align:center">
+      <div class="profile-name" id="profile-display-name">User</div>
+      <div class="profile-tag" id="profile-display-email">user@example.com · joined 2024</div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="stat-num" id="stat-checkin">42</div>
+        <div class="stat-label">Check-ins</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="stat-streak">5</div>
+        <div class="stat-label">Day Streak</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="stat-avg">28</div>
+        <div class="stat-label">Avg Stress</div>
+      </div>
+    </div>
+
+    <div class="section-label">Settings</div>
+    <div class="setting-list">
+      <div class="setting-item">
+        <div class="setting-left">🔔 &nbsp; Notifications</div>
+        <div class="toggle" onclick="this.classList.toggle('off')"></div>
+      </div>
+      <div class="setting-item">
+        <div class="setting-left">🌙 &nbsp; Dark Mode</div>
+        <div class="toggle" onclick="this.classList.toggle('off')"></div>
+      </div>
+      <div class="setting-item">
+        <div class="setting-left">🔒 &nbsp; Privacy Mode</div>
+        <div class="toggle off" onclick="this.classList.toggle('off')"></div>
+      </div>
+      <div class="setting-item">
+        <div class="setting-left">📤 &nbsp; Export Data</div>
+        <div style="color:var(--text-muted);font-size:0.8rem;">›</div>
+      </div>
+      <div class="setting-item">
+        <div class="setting-left">🗑️ &nbsp; Clear History</div>
+        <div style="color:var(--text-muted);font-size:0.8rem;">›</div>
+      </div>
+      <div class="setting-item" onclick="handleLogout()" style="border-color:rgba(255,85,85,0.2);">
+        <div class="setting-left" style="color:#ff7070;">🚪 &nbsp; Logout</div>
+        <div style="color:#ff7070;font-size:0.8rem;">›</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FORGOT PASSWORD MODAL -->
+<div id="forgot-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300;align-items:center;justify-content:center;padding:24px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:28px;width:100%;max-width:380px;">
+    <div style="font-size:1.1rem;font-weight:800;margin-bottom:6px;">Password Reset</div>
+    <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--text-muted);margin-bottom:20px;">Apna email daalein, hum reset link bhejenge</div>
+    <input id="forgot-email" type="email" placeholder="email@example.com" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:13px 16px;color:var(--text);font-family:'Syne',sans-serif;font-size:0.85rem;outline:none;margin-bottom:16px;" />
+    <div style="display:flex;gap:10px;">
+      <button onclick="closeForgot()" style="flex:1;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-family:'Syne',sans-serif;font-weight:600;cursor:pointer;">Wapas</button>
+      <button onclick="sendReset()" style="flex:1;padding:12px;background:var(--green);border:none;border-radius:12px;color:#040f0a;font-family:'Syne',sans-serif;font-weight:700;cursor:pointer;">Bhejo</button>
+    </div>
+  </div>
+</div>
+
+<!-- FAB -->
+<button class="fab" onclick="openCheckIn()">+</button>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-item active" id="nav-home" onclick="switchScreen('home')">
+    <span class="nav-icon">⊞</span>
+    Home
+  </button>
+  <button class="nav-item" id="nav-trends" onclick="switchScreen('trends')">
+    <span class="nav-icon">📈</span>
+    Trends
+  </button>
+  <div style="width:60px"></div>
+  <button class="nav-item" id="nav-safety" onclick="switchScreen('safety')">
+    <span class="nav-icon">🛡️</span>
+    Safety
+  </button>
+  <button class="nav-item" id="nav-chat" onclick="switchScreen('chat')">
+    <span class="nav-icon">💬</span>
+    Chat
+  </button>
+  <button class="nav-item" id="nav-profile" onclick="switchScreen('profile')">
+    <span class="nav-icon">👤</span>
+    Profile
+  </button>
+</nav>
+
+<!-- CHECK-IN MODAL -->
+<div id="checkin-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;display:none;align-items:center;justify-content:center;padding:24px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:28px;width:100%;max-width:380px;">
+    <div style="font-size:1.1rem;font-weight:800;margin-bottom:6px;">How stressed are you?</div>
+    <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--text-muted);margin-bottom:24px;">Slide to check in</div>
+
+    <input type="range" id="stress-slider" min="0" max="100" value="0"
+      style="width:100%;accent-color:var(--green);height:6px;cursor:pointer;"
+      oninput="updateSlider(this.value)">
+
+    <div style="display:flex;justify-content:space-between;margin-top:10px;font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--text-muted);">
+      <span>LOW</span><span id="slider-val">0</span><span>HIGH</span>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:24px;">
+      <button onclick="closeCheckIn()" style="flex:1;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-family:'Syne',sans-serif;font-weight:600;cursor:pointer;">Cancel</button>
+      <button onclick="submitCheckIn()" style="flex:1;padding:12px;background:var(--green);border:none;border-radius:12px;color:#040f0a;font-family:'Syne',sans-serif;font-weight:700;cursor:pointer;">Log It</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ══════════════════════════════════════════════════════════════════════════
+  //  MindGuard AI  —  Frontend ↔ Backend Integration
+  //  Backend: FastAPI + MongoDB  (http://localhost:8000)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // Determine host dynamically (localhost vs 127.0.0.1)
+  const API_HOST = window.location.hostname || 'localhost';
+  const API_BASE = `http://${API_HOST}:8000/api`;
+
+  // ── Google Client ID (must match .env GOOGLE_CLIENT_ID) ──────────────────
+  const GOOGLE_CLIENT_ID = '322690404680-fdesppksaf48k0i2t466vaqsqd5642a2.apps.googleusercontent.com';
+
+  // ── Token storage (sessionStorage → clears on tab close) ─────────────────
+  const Auth = {
+    getAccess:   () => sessionStorage.getItem('mg_access'),
+    getRefresh:  () => sessionStorage.getItem('mg_refresh'),
+    setTokens(access, refresh) {
+      sessionStorage.setItem('mg_access', access);
+      sessionStorage.setItem('mg_refresh', refresh);
+    },
+    clear() {
+      sessionStorage.removeItem('mg_access');
+      sessionStorage.removeItem('mg_refresh');
+    },
+    isLoggedIn: () => !!sessionStorage.getItem('mg_access'),
+  };
+
+  // ── HTTP helper with auto token-refresh ──────────────────────────────────
+  async function api(method, path, body = null, retry = true) {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = Auth.getAccess();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const opts = { method, headers };
+    if (body) opts.body = JSON.stringify(body);
+
+    const url = API_BASE + path;
+    console.log(`[API Call] ${method} ${url}`);
+    let res = await fetch(url, opts);
+
+    // Access token expired → try refresh once
+    if (res.status === 401 && retry && Auth.getRefresh()) {
+      const refreshed = await tryRefresh();
+      if (refreshed) return api(method, path, body, false);
+      Auth.clear();
+      showToast('Session expired. Please login again.', 'error');
+      renderProfileLoggedOut();
+      return null;
+    }
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Network error' }));
+      throw new Error(err.detail || 'Something went wrong');
+    }
+
+    if (res.status === 204) return null;
+    return res.json();
+  }
+
+  async function tryRefresh() {
+    try {
+      const res = await fetch(API_BASE + '/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: Auth.getRefresh() }),
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      sessionStorage.setItem('mg_access', data.access_token);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // ── Toast notification ────────────────────────────────────────────────────
+  function showToast(msg, type = 'info') {
+    const existing = document.getElementById('mg-toast');
+    if (existing) existing.remove();
+
+    const colors = { info: '#00e87a', error: '#ff5555', warn: '#f0c040' };
+    const t = document.createElement('div');
+    t.id = 'mg-toast';
+    t.textContent = msg;
+    Object.assign(t.style, {
+      position: 'fixed', bottom: '90px', left: '50%',
+      transform: 'translateX(-50%)',
+      background: colors[type] || colors.info,
+      color: '#040f0a', fontFamily: "'Syne',sans-serif",
+      fontWeight: '700', fontSize: '0.8rem',
+      padding: '10px 20px', borderRadius: '20px',
+      zIndex: '9999', boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+      transition: 'opacity 0.4s', opacity: '1',
+      maxWidth: '80vw', textAlign: 'center',
+    });
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 3000);
+  }
+
+  const tips = [
+    '"Release what you can\'t control, and let peace find you."',
+    '"Breathe in slowly, breathe out slowly. You have this."',
+    '"Every storm passes. You are stronger than you think."',
+    '"Rest is not laziness. It\'s how you recharge your mind."',
+    '"One step at a time. Progress, not perfection."',
+  ];
+
+  const aiReplies = [
+    "That sounds really tough. It takes courage to share how you're feeling. 💚",
+    "I hear you. You're not alone in this — many people feel that way. Let's breathe through it together.",
+    "Thank you for opening up. How long have you been feeling this way?",
+    "That makes a lot of sense. Would you like to try a quick breathing exercise?",
+    "I'm here for you. Remember — you don't have to carry this alone.",
+    "Your feelings are valid. Would you like some coping strategies right now?",
+  ];
+
+  // Init
+  let currentStress = 0;
+  let currentScreen = 'home';
+
+  function switchScreen(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('screen-' + name).classList.add('active');
+    const navEl = document.getElementById('nav-' + name);
+    if (navEl) navEl.classList.add('active');
+    currentScreen = name;
+
+    if (name === 'trends') loadTrends();
+    if (name === 'chat' && Auth.isLoggedIn()) loadChatHistory();
+    if (name === 'home' && Auth.isLoggedIn()) loadHomeStats();
+  }
+
+  // Gauge
+  function setGauge(val) {
+    const fill = document.getElementById('gauge-fill');
+    const label = document.getElementById('gauge-label');
+    const value = document.getElementById('gauge-value');
+    const dot = document.getElementById('gauge-dot');
+    const statusTitle = document.getElementById('status-title');
+    const statusSub = document.getElementById('status-sub');
+
+    const circumference = 427;
+    const offset = circumference - (val / 100) * circumference;
+    fill.style.strokeDashoffset = offset;
+
+    value.textContent = val;
+
+    if (val < 33) {
+      fill.style.stroke = 'var(--low)';
+      fill.style.filter = 'drop-shadow(0 0 6px var(--low))';
+      label.style.color = 'var(--low)';
+      label.textContent = 'LOW';
+      dot.style.background = 'var(--low)';
+      dot.style.boxShadow = '0 0 10px var(--low)';
+    } else if (val < 66) {
+      fill.style.stroke = 'var(--mid)';
+      fill.style.filter = 'drop-shadow(0 0 6px var(--mid))';
+      label.style.color = 'var(--mid)';
+      label.textContent = 'MODERATE';
+      dot.style.background = 'var(--mid)';
+      dot.style.boxShadow = '0 0 10px var(--mid)';
+    } else {
+      fill.style.stroke = 'var(--high)';
+      fill.style.filter = 'drop-shadow(0 0 6px var(--high))';
+      label.style.color = 'var(--high)';
+      label.textContent = 'HIGH';
+      dot.style.background = 'var(--high)';
+      dot.style.boxShadow = '0 0 10px var(--high)';
+    }
+
+    if (val === 0) {
+      statusTitle.textContent = 'LOCAL MODE ACTIVE';
+      statusSub.textContent = 'Running in Local Mode. Server connection lost.';
+    } else if (val < 33) {
+      statusTitle.textContent = 'ALL IS WELL';
+      statusSub.textContent = 'Your stress level is low. Keep it up!';
+    } else if (val < 66) {
+      statusTitle.textContent = 'STAY MINDFUL';
+      statusSub.textContent = 'Moderate stress detected. Take a breather.';
+    } else {
+      statusTitle.textContent = 'HIGH STRESS ALERT';
+      statusSub.textContent = 'Please take a break. Consider the Safety tab.';
+    }
+
+    // Rotate dot
+    const angle = (val / 100) * 360 - 90;
+    const rad = (angle * Math.PI) / 180;
+    const r = 68;
+    const cx = 100, cy = 100;
+    const x = cx + r * Math.cos(rad);
+    const y = cy + r * Math.sin(rad);
+    // Simple top position animation
+    dot.style.top = val === 0 ? '4px' : '4px';
+  }
+
+  // Mode toggle
+  function toggleMode(btn) {
+    if (btn.textContent === 'LOCAL MODE') {
+      btn.textContent = 'ONLINE MODE';
+      setTimeout(() => animateGauge(Math.floor(Math.random() * 60)), 500);
+    } else {
+      btn.textContent = 'LOCAL MODE';
+      setTimeout(() => animateGauge(0), 500);
+    }
+  }
+
+  function animateGauge(target) {
+    let current = currentStress;
+    const step = target > current ? 1 : -1;
+    const interval = setInterval(() => {
+      current += step;
+      setGauge(current);
+      if (current === target) {
+        clearInterval(interval);
+        currentStress = target;
+      }
+    }, 15);
+  }
+
+  // Check-in modal
+  function openCheckIn() {
+    const modal = document.getElementById('checkin-modal');
+    modal.style.display = 'flex';
+  }
+
+  function closeCheckIn() {
+    document.getElementById('checkin-modal').style.display = 'none';
+  }
+
+  function updateSlider(val) {
+    document.getElementById('slider-val').textContent = val;
+  }
+
+  // ── Check-in (real API) ─────────────────────────────────────────────────
+  async function submitCheckIn() {
+    const val = parseInt(document.getElementById('stress-slider').value);
+    const noteEl = document.getElementById('checkin-note');
+    const note = noteEl ? noteEl.value.trim() : null;
+    closeCheckIn();
+    animateGauge(val);
+    const idx = Math.floor(Math.random() * tips.length);
+    document.getElementById('tip-text').textContent = tips[idx];
+
+    if (!Auth.isLoggedIn()) return; // guest mode — local only
+
+    try {
+      await api('POST', '/checkins', { stress_level: val, note: note || null });
+      showToast('Check-in saved! 💚');
+      loadHomeStats();
+    } catch (e) {
+      showToast('Could not save check-in: ' + e.message, 'error');
+    }
+  }
+
+  // ── Home stats (streak, checkin count) ──────────────────────────────────
+  async function loadHomeStats() {
+    if (!Auth.isLoggedIn()) return;
+    try {
+      const stats = await api('GET', '/checkins/stats');
+      if (!stats) return;
+      // Update profile stats if visible
+      const els = {
+        checkin: document.getElementById('stat-checkin'),
+        streak:  document.getElementById('stat-streak'),
+        avg:     document.getElementById('stat-avg'),
+      };
+      if (els.checkin) els.checkin.textContent = stats.total_checkins;
+      if (els.streak)  els.streak.textContent  = stats.streak;
+      if (els.avg)     els.avg.textContent      = stats.avg_stress;
+    } catch (_) {}
+  }
+
+  // ── Trends (real API) ───────────────────────────────────────────────────
+  async function loadTrends() {
+    const container = document.getElementById('chart-bars');
+    if (!container) return;
+    container.innerHTML = `<div style="color:var(--text-muted);font-family:'Space Mono',monospace;font-size:0.65rem;padding:20px 0;">Loading...</div>`;
+
+    if (!Auth.isLoggedIn()) {
+      // Fallback demo data
+      renderBars([
+        { date: 'Mon', avg_stress: 40, label: 'MODERATE' },
+        { date: 'Tue', avg_stress: 55, label: 'MODERATE' },
+        { date: 'Wed', avg_stress: 78, label: 'HIGH' },
+        { date: 'Thu', avg_stress: 30, label: 'LOW' },
+        { date: 'Fri', avg_stress: 60, label: 'MODERATE' },
+        { date: 'Sat', avg_stress: 20, label: 'LOW' },
+        { date: 'Sun', avg_stress: 10, label: 'LOW' },
+      ]);
+      return;
+    }
+
+    try {
+      const data = await api('GET', '/checkins/trends');
+      if (!data || !data.trends.length) {
+        container.innerHTML = `<div style="color:var(--text-muted);font-family:'Space Mono',monospace;font-size:0.65rem;padding:20px 0;text-align:center;">No data yet. Do your first check-in!</div>`;
+        return;
+      }
+      // Format dates to short day names
+      const formatted = data.trends.map(d => ({
+        ...d,
+        date: new Date(d.date).toLocaleDateString('en', { weekday: 'short' }),
+      }));
+      renderBars(formatted);
+
+      // Update insights block
+      const insightsEl = document.getElementById('trends-insights');
+      if (insightsEl && data.trends.length) {
+        const sorted = [...data.trends].sort((a, b) => b.avg_stress - a.avg_stress);
+        const highest = sorted[0];
+        const lowest  = sorted[sorted.length - 1];
+        const avg = Math.round(data.trends.reduce((s, d) => s + d.avg_stress, 0) / data.trends.length);
+        insightsEl.innerHTML = `
+          📅 &nbsp;Most stressed: <span style="color:var(--text)">${new Date(highest.date).toLocaleDateString('en',{weekday:'long'})}</span><br>
+          😌 &nbsp;Calmest day: <span style="color:var(--green)">${new Date(lowest.date).toLocaleDateString('en',{weekday:'long'})}</span><br>
+          📊 &nbsp;Avg stress: <span style="color:var(--text)">${avg} / 100</span>
+        `;
+      }
+    } catch (e) {
+      container.innerHTML = `<div style="color:#ff5555;font-family:'Space Mono',monospace;font-size:0.65rem;padding:10px 0;">Failed to load trends.</div>`;
+    }
+  }
+
+  function renderBars(data) {
+    const container = document.getElementById('chart-bars');
+    container.innerHTML = '';
+    const maxVal = Math.max(...data.map(d => d.avg_stress), 1);
+
+    data.forEach(d => {
+      const cls = d.label === 'HIGH' ? 'high' : d.label === 'MODERATE' ? 'mid' : 'low';
+      const heightPx = Math.max(4, (d.avg_stress / 100) * 100);
+      const wrap = document.createElement('div');
+      wrap.className = 'bar-wrap';
+      const bar = document.createElement('div');
+      bar.className = 'bar ' + cls;
+      bar.style.height = '0px';
+      bar.title = d.avg_stress + ' — ' + d.label;
+      const label = document.createElement('div');
+      label.className = 'bar-day';
+      label.textContent = d.date;
+      wrap.appendChild(bar);
+      wrap.appendChild(label);
+      container.appendChild(wrap);
+      setTimeout(() => {
+        bar.style.height = heightPx + 'px';
+        bar.style.transition = 'height 0.7s ease';
+      }, 80);
+    });
+  }
+
+  // ── Chat (real API) ──────────────────────────────────────────────────────
+  async function loadChatHistory() {
+    if (!Auth.isLoggedIn()) return;
+    try {
+      const msgs = await api('GET', '/chat/history');
+      if (!msgs || !msgs.length) return;
+      const container = document.getElementById('chat-container');
+      container.innerHTML = '';
+      msgs.forEach(m => appendChatBubble(m.message, m.role));
+      container.scrollTop = container.scrollHeight;
+    } catch (_) {}
+  }
+
+  function appendChatBubble(text, role) {
+    const container = document.getElementById('chat-container');
+    const div = document.createElement('div');
+    div.className = 'chat-bubble ' + (role === 'user' ? 'bubble-user' : 'bubble-ai');
+    div.textContent = text;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return div;
+  }
+
+  async function sendChat() {
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+
+    appendChatBubble(msg, 'user');
+
+    const container = document.getElementById('chat-container');
+    const typing = document.createElement('div');
+    typing.className = 'typing';
+    typing.innerHTML = '<span></span><span></span><span></span>';
+    container.appendChild(typing);
+    container.scrollTop = container.scrollHeight;
+
+    if (!Auth.isLoggedIn()) {
+      // Offline fallback
+      const aiReplies = [
+        "That sounds really tough. It takes courage to share how you\'re feeling. 💚",
+        "I hear you. You\'re not alone in this.",
+        "Thank you for opening up. How long have you been feeling this way?",
+        "Your feelings are valid. Would you like some coping strategies?",
+      ];
+      setTimeout(() => {
+        typing.remove();
+        appendChatBubble(aiReplies[Math.floor(Math.random() * aiReplies.length)], 'ai');
+      }, 1500);
+      return;
+    }
+
+    try {
+      const data = await api('POST', '/chat', { message: msg });
+      typing.remove();
+      if (data && data.ai_response) {
+        appendChatBubble(data.ai_response.message, 'ai');
+      }
+    } catch (e) {
+      typing.remove();
+      appendChatBubble('Sorry, could not connect to server. ' + e.message, 'ai');
+    }
+  }
+
+  // ── SOS ──────────────────────────────────────────────────────────────────
+  function triggerSOS() {
+    alert('🆘 Emergency resources are being loaded.\n\nCall 988 for immediate crisis support.\nText HOME to 741741.');
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  setTimeout(() => setGauge(0), 300);
+
+  // On load — check if already logged in (session restored)
+  window.addEventListener('DOMContentLoaded', () => {
+    if (Auth.isLoggedIn()) {
+      api('GET', '/auth/me').then(user => {
+        if (user) renderProfileLoggedIn(user);
+      }).catch(() => Auth.clear());
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  AUTH — Real API calls
+  // ══════════════════════════════════════════════════════════════════════════
+  let currentTab = 'login';
+
+  function switchAuthTab(tab) {
+    currentTab = tab;
+    const loginBtn  = document.getElementById('tab-login');
+    const signupBtn = document.getElementById('tab-signup');
+    const nameField = document.getElementById('signup-name-field');
+    const forgotLink = document.getElementById('forgot-link');
+    const authBtn   = document.getElementById('auth-btn');
+
+    if (tab === 'login') {
+      loginBtn.style.background  = 'var(--green)';
+      loginBtn.style.color       = '#040f0a';
+      signupBtn.style.background = 'transparent';
+      signupBtn.style.color      = 'var(--text-muted)';
+      nameField.style.display    = 'none';
+      forgotLink.style.display   = 'block';
+      authBtn.textContent        = 'LOGIN';
+    } else {
+      signupBtn.style.background = 'var(--green)';
+      signupBtn.style.color      = '#040f0a';
+      loginBtn.style.background  = 'transparent';
+      loginBtn.style.color       = 'var(--text-muted)';
+      nameField.style.display    = 'block';
+      forgotLink.style.display   = 'none';
+      authBtn.textContent        = 'ACCOUNT BANAYEIN';
+    }
+    clearAuthError();
+  }
+
+  function showAuthError(msg) {
+    const el = document.getElementById('auth-error');
+    el.textContent = '⚠ ' + msg;
+    el.style.display = 'block';
+  }
+
+  function clearAuthError() {
+    const el = document.getElementById('auth-error');
+    if (el) el.style.display = 'none';
+  }
+
+  function togglePass() {
+    const inp = document.getElementById('inp-pass');
+    const eye = document.getElementById('pass-eye');
+    if (inp.type === 'password') { inp.type = 'text';     eye.textContent = '🙈'; }
+    else                          { inp.type = 'password'; eye.textContent = '👁️'; }
+  }
+
+  async function handleAuth() {
+    const email = document.getElementById('inp-email').value.trim();
+    const pass  = document.getElementById('inp-pass').value;
+    const btn   = document.getElementById('auth-btn');
+    clearAuthError();
+
+    if (!email || !pass) { showAuthError('Email aur password zaroor bharen.'); return; }
+    if (!email.includes('@')) { showAuthError('Valid email daalein.'); return; }
+    if (pass.length < 8)  { showAuthError('Password kam az kam 8 characters ka hona chahiye.'); return; }
+
+    btn.textContent = '⏳ Please wait...';
+    btn.style.opacity = '0.7';
+    btn.disabled = true;
+
+    try {
+      let data;
+      if (currentTab === 'login') {
+        data = await api('POST', '/auth/login', { email, password: pass });
+      } else {
+        const name = document.getElementById('inp-name').value.trim();
+        if (!name) { showAuthError('Apna naam zaroor likhein.'); return; }
+        // Password strength check (matches backend)
+        if (!/[A-Z]/.test(pass)) { showAuthError('Password mein kam az kam ek capital letter honi chahiye.'); return; }
+        if (!/[0-9]/.test(pass)) { showAuthError('Password mein kam az kam ek number hona chahiye.'); return; }
+        data = await api('POST', '/auth/register', { full_name: name, email, password: pass });
+      }
+
+      if (data) {
+        Auth.setTokens(data.access_token, data.refresh_token);
+        renderProfileLoggedIn(data.user);
+        showToast('Login successful! Welcome 💚');
+        loadHomeStats();
+      }
+    } catch (e) {
+      showAuthError(e.message);
+    } finally {
+      btn.style.opacity = '1';
+      btn.disabled = false;
+      btn.textContent = currentTab === 'login' ? 'LOGIN' : 'ACCOUNT BANAYEIN';
+    }
+  }
+
+  function renderProfileLoggedIn(user) {
+    document.getElementById('profile-display-name').textContent = user.full_name || user.name || 'User';
+    document.getElementById('profile-display-email').textContent = (user.email || '') + ' · joined ' + (user.created_at || '2025').slice(0, 4);
+    document.getElementById('profile-emoji').textContent = '🧑';
+
+    // Update stat boxes with real data
+    const checkinEl = document.getElementById('stat-checkin');
+    const streakEl  = document.getElementById('stat-streak');
+    const avgEl     = document.getElementById('stat-avg');
+    if (checkinEl) checkinEl.textContent = user.checkin_count || 0;
+    if (streakEl)  streakEl.textContent  = user.streak || 0;
+
+    const out = document.getElementById('profile-loggedout');
+    out.style.transition = 'opacity 0.3s';
+    out.style.opacity = '0';
+    setTimeout(() => {
+      out.style.display = 'none';
+      const inn = document.getElementById('profile-loggedin');
+      inn.style.display = 'flex';
+      inn.style.opacity = '0';
+      inn.style.transition = 'opacity 0.4s';
+      requestAnimationFrame(() => { inn.style.opacity = '1'; });
+    }, 300);
+  }
+
+  function renderProfileLoggedOut() {
+    Auth.clear();
+    const inn = document.getElementById('profile-loggedin');
+    if (!inn) return;
+    inn.style.opacity = '0';
+    setTimeout(() => {
+      inn.style.display = 'none';
+      const out = document.getElementById('profile-loggedout');
+      out.style.display = 'flex';
+      out.style.opacity = '0';
+      out.style.transition = 'opacity 0.4s';
+      document.getElementById('inp-email').value = '';
+      document.getElementById('inp-pass').value  = '';
+      if (document.getElementById('inp-name')) document.getElementById('inp-name').value = '';
+      switchAuthTab('login');
+      requestAnimationFrame(() => { out.style.opacity = '1'; });
+    }, 300);
+  }
+
+  async function handleLogout() {
+    if (!confirm('Kya aap logout karna chahte hain?')) return;
+    try { await api('POST', '/auth/logout'); } catch (_) {}
+    renderProfileLoggedOut();
+    showToast('Logout ho gaye. Khuda Hafiz! 👋');
+  }
+
+  async function handleGoogleCredential(response) {
+    const wrapper = document.getElementById('google-btn-wrapper');
+    if (wrapper) { wrapper.style.opacity = '0.5'; }
+    try {
+      const data = await api('POST', '/auth/google', { credential: response.credential });
+      if (data) {
+        Auth.setTokens(data.access_token, data.refresh_token);
+        renderProfileLoggedIn(data.user);
+        showToast('Google se login ho gaye! Welcome 💚');
+        loadHomeStats();
+      }
+    } catch (e) {
+      showToast('Google login failed: ' + e.message, 'error');
+    } finally {
+      if (wrapper) { wrapper.style.opacity = '1'; }
+    }
+  }
+
+  // Initialize Google Identity Services once DOM + GSI script are ready
+  function initGoogleSignIn() {
+    if (!window.google || !GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes('YOUR_GOOGLE')) return;
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback:  handleGoogleCredential,
+      auto_select: false,
+      context: 'signin'
+    });
+
+    const wrapper = document.getElementById('google-btn-wrapper');
+    if (wrapper) {
+      google.accounts.id.renderButton(
+        wrapper,
+        { theme: 'filled_black', size: 'large', width: wrapper.parentElement.offsetWidth || 300, shape: 'pill' }
+      );
+    }
+  }
+
+  // Try init now and also after GSI loads async
+  window.addEventListener('DOMContentLoaded', () => {
+    initGoogleSignIn();
+  });
+  // GSI calls this when ready
+  window.onGoogleLibraryLoad = initGoogleSignIn;
+
+  // Forgot password
+  function showForgot() { document.getElementById('forgot-modal').style.display = 'flex'; }
+  function closeForgot() { document.getElementById('forgot-modal').style.display = 'none'; }
+
+  async function sendReset() {
+    const email = document.getElementById('forgot-email').value.trim();
+    if (!email) { showToast('Email daalein.', 'error'); return; }
+    try {
+      await api('POST', '/auth/forgot-password', { email });
+      closeForgot();
+      showToast('Reset link bheja gaya (agar email exist karta hai).');
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+</script>
+</body>
+</html>
